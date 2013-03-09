@@ -7,10 +7,8 @@
 
 #include "sudoku.h"
 
-static const char* usage = "Usage: %s [-h] <input file> [-s] <subgrid size>\n";
+static const char* usage = "Usage: %s [-h] [-s] <subgrid size> <input file>\n";
 static const char* fileError = "Error opening file %s\n";
-
-static int sSize;
 
 int main(int argc, char** argv) {
     int bSize; // Size of a sub-grid
@@ -19,11 +17,8 @@ int main(int argc, char** argv) {
 
     int opt;
 
-    sSize = 0;
-    
     bSize = 0;
-    
-    while((opt = getopt(argc, argv, "hs")) != -1) {
+    while((opt = getopt(argc, argv, "hs:")) != -1) {
         switch(opt) {
         case 'h':
             printf(usage, argv[0]);
@@ -31,7 +26,7 @@ int main(int argc, char** argv) {
             break;
         case 's':
             if((bSize = atoi(optarg)) <= 0) {
-                fprintf(stderr, "Invalid sub block size");
+                fprintf(stderr, "Invalid sub block size\n");
                 exit(EXIT_FAILURE);
             }
             break;
@@ -44,7 +39,14 @@ int main(int argc, char** argv) {
 
     if(!bSize) bSize = DEFAULT_SIZE;
 
-    if((inFile = fopen(argv[1], "r")) == NULL)
+    if(argc < 2) {
+        fprintf(stderr, "Not enough arguments\n");
+        fprintf(stderr, usage, argv[0]);
+        exit(EXIT_FAILURE);
+    }
+    
+
+    if((inFile = fopen(argv[argc - 1], "r")) == NULL)
     {
         fprintf(stderr, fileError, argv[1]);
         fprintf(stderr, usage, argv[0]);
@@ -61,9 +63,6 @@ int main(int argc, char** argv) {
     int input;
     int cnt = 0;
     int *p = b->numbers;
-
-    push(s, b);
-
 
     do {
         if(fscanf(inFile, "%d", &input) != 1)
@@ -82,6 +81,12 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Not enough numbers in input file\n");
         exit(EXIT_FAILURE);
     }
+
+    printf("Solving:\n");
+    printBoard(b);
+    printf("\n");
+
+    push(s, b);
     
     bool results = solve(s, bSize);
 
@@ -96,18 +101,19 @@ int main(int argc, char** argv) {
 // Attempt to solve sudoku puzzle on the stack.  Returns true if success,
 // false if failure
 bool solve(stack *s, int bSize) {
-    printf("%d\n", sSize++);
     int bWidth = bSize * bSize;
     int x, y, testVal;
     board *b = s->top;
 
     for(y = 0; y < bWidth; y++) {
         for(x = 0; x < bWidth; x++) {
-            if(!(*getVal(b, x, y))) continue; // skip over covered squares
+            if((*getVal(b, x, y))) {
+                continue; // skip over covered squares
+            }
             board *cpy = copyBoard(b);
             int *val = getVal(cpy, x, y);
             push(s, cpy);
-            for(testVal = 1; testVal < bWidth; testVal++) {
+            for(testVal = 1; testVal <= bWidth; testVal++) {
                 *val = testVal;
                 if(isConflict(cpy, x, y)) // Invalid partial solution, continue
                    continue;
@@ -200,7 +206,7 @@ bool isSubGridConf(board *b, int x, int y) {
             }            
         }
             
-
+    free(seen);
     return false;
 }
 
@@ -211,5 +217,6 @@ void printResults(stack *s, bool result) {
     }
 
     board *b = s->top;
+    printf("Result:\n");
     printBoard(b);
 }
